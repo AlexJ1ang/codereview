@@ -8,6 +8,10 @@ version = "0.1.0"
 description = "Detect unnecessary implementation complexity in AI-generated code changes."
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [
+    {name = "AlexJ1ang", email = "jiangkehan0630@gmail.com"},
+]
+license = {text = "MIT"}
 dependencies = [
     "typer>=0.9",
     "httpx>=0.24",

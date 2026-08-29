@@ -138,15 +138,15 @@ Without LLM configuration, CodeReview still runs all static analysis.
 
 ## GitHub Actions
 
-`codereview` can be used in CI to evaluate implementation overhead on PRs. Example:
+`codereview` can be used in CI to evaluate implementation overhead on PRs. The repo includes a ready-made workflow at `.github/workflows/review.yml`:
 
 ```yaml
-- name: Run CodeReview
-  uses: ./.github/actions/codereview
-  with:
-    base: main
-    task: "${{ github.event.pull_request.title }}"
-    token: "${{ secrets.GITHUB_TOKEN }}"
+- name: Run review
+  run: |
+    codereview review \
+      --base "$GITHUB_BASE_REF" \
+      --task "${{ github.event.pull_request.title }}" \
+      --json > review.json
 ```
 
 ## Limitations
@@ -320,15 +320,15 @@ export CODEREVIEW_MODEL="gpt-4o-mini"  # 或你的模型
 
 ## GitHub Actions
 
-`codereview` 可在 CI 中对 PR 做实现开销检查。示例：
+`codereview` 可在 CI 中对 PR 做实现开销检查。仓库已包含现成 workflow：`.github/workflows/review.yml`：
 
 ```yaml
-- name: Run CodeReview
-  uses: ./.github/actions/codereview
-  with:
-    base: main
-    task: "${{ github.event.pull_request.title }}"
-    token: "${{ secrets.GITHUB_TOKEN }}"
+- name: Run review
+  run: |
+    codereview review \
+      --base "$GITHUB_BASE_REF" \
+      --task "${{ github.event.pull_request.title }}" \
+      --json > review.json
 ```
 
 ## 限制
