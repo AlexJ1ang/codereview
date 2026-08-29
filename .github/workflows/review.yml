@@ -1,0 +1,80 @@
+name: CodeReview
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  codereview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install codereview
+        run: pip install -e .
+
+      - name: Run review
+        run: |
+          codereview review \
+            --base "$GITHUB_BASE_REF" \
+            --task "${{ github.event.pull_request.title }}" \
+            --json > review.json
+
+      - name: Read report
+        id: report
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('review.json', 'utf8'));
+            core.setOutput('score', report.score);
+            core.setOutput('risk', report.risk);
+            core.setOutput('warn', report.score >= 60);
+            core.setOutput('json', JSON.stringify(report));
+
+      - name: Comment on PR (high overhead only)
+        if: steps.report.outputs.warn == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const report = JSON.parse(process.env.REPORT);
+            const body = [
+              '## CodeReview',
+              '**Score:** ' + report.score + '/100',
+              '**Risk:** ' + report.risk,
+              '',
+              '### Breakdown',
+              ...report.breakdown.map(b =>
+                '- **' + b.label + '** (' + b.points + '/' + b.max_points + '): ' + b.reason),
+              '',
+              '### Abstractions',
+              report.abstractions.length
+                ? report.abstractions.map(a => '- `' + a.name + '` (' + a.kind + ')')
+                : 'None detected',
+              '',
+              '### Duplicates',
+              report.duplicates.length
+                ? report.duplicates.map(d => '- `' + d.new_name + '` ~ `' + d.existing_name + '`')
+                : 'None detected',
+              '',
+              report.suggestions.length
+                ? '### Suggestions\n' + report.suggestions.map(s => '- ' + s).join('\n')
+                : 'No suggestions.'
+            ].join('\n');
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+        env:
+          REPORT: ${{ steps.report.outputs.json }}
