@@ -54,9 +54,10 @@ class ModuleMetrics:
 
 def _node_loc(node: ast.AST) -> int:
     end = getattr(node, "end_lineno", None)
-    if end is None:
+    lineno = getattr(node, "lineno", None)
+    if end is None or lineno is None:
         return 1
-    return end - node.lineno + 1
+    return end - lineno + 1
 
 
 def _complexity_of(body: list[ast.stmt]) -> int:
@@ -94,12 +95,11 @@ class _Collector(ast.NodeVisitor):
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         self._record_function(node)
 
-    def _record_function(self, node: ast.AST) -> None:
+    def _record_function(self, node: ast.FunctionDef | ast.AsyncFunctionDef) -> None:
         loc = _node_loc(node)
         complexity = _complexity_of(node.body)
-        args = getattr(node, "args", ast.arguments())
-        arg_count = len(args.args)
-        arg_names = [a.arg for a in args.args]
+        arg_count = len(node.args.args)
+        arg_names = [a.arg for a in node.args.args]
         self.metrics.function_count += 1
         self.metrics.max_function_length = max(self.metrics.max_function_length, loc)
         self.metrics.complexity += complexity

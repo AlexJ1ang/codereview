@@ -1,7 +1,6 @@
 """Core review pipeline: ties diff, analysis, detectors, scoring, report."""
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 from .detectors import (
@@ -22,14 +21,6 @@ from .git_diff import (
 from .llm import LLMConfig, review_scope, simplification_advice
 from .python_analyzer import analyze_code, compute_delta
 from .scoring import compute_scores, risk_level
-
-
-def _env_llm_cfg() -> LLMConfig:
-    return LLMConfig(
-        api_key=os.environ.get("CODEREVIEW_API_KEY"),
-        base_url=os.environ.get("CODEREVIEW_BASE_URL"),
-        model=os.environ.get("CODEREVIEW_MODEL"),
-    )
 
 
 def _risk_for_delta(delta: int) -> str:
@@ -99,7 +90,7 @@ def run_review(
     new_functions_all = []
     new_classes_all = []
     per_file_delta = {}
-    fn_complexity_all = []  # (name, file, complexity) for every function in after-source
+    fn_complexity_all: list[tuple[str, str, int]] = []  # (name, file, complexity)
     total_before = {"complexity": 0, "loc": 0, "function_count": 0, "class_count": 0}
     total_after = {"complexity": 0, "loc": 0, "function_count": 0, "class_count": 0}
 
@@ -150,7 +141,7 @@ def run_review(
     duplicates = detect_duplicates(new_functions_all, existing)
 
     # LLM scope drift (optional)
-    llm_cfg = _env_llm_cfg()
+    llm_cfg = LLMConfig.from_env()
     scope_drift = []
     if llm_cfg.enabled:
         files_info = [

@@ -24,8 +24,8 @@ _ENV_VARS = {
 @dataclass
 class LLMConfig:
     api_key: str | None = None
-    base_url: str | None = None
-    model: str | None = None
+    base_url: str = DEFAULT_BASE_URL
+    model: str = DEFAULT_MODEL
     client: httpx.Client | None = field(default=None, repr=False)
 
     @property
@@ -33,7 +33,7 @@ class LLMConfig:
         return bool(self.api_key)
 
     @classmethod
-    def from_env(cls) -> "LLMConfig":
+    def from_env(cls) -> LLMConfig:
         return cls(
             api_key=os.environ.get(_ENV_VARS["api_key"]),
             base_url=os.environ.get(_ENV_VARS["base_url"]) or DEFAULT_BASE_URL,
