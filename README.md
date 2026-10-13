@@ -31,6 +31,7 @@ The result is code that works, but is harder to debug, maintain, and review.
 - **Deleted-file Accounting**: Includes deleted Python files in the complexity delta
 - **Explainable Scoring**: 0-100 score with clear breakdown
 - **Explicit `--cwd`**: Run against any repository, not just the current directory
+- **Uncommitted-change review**: `--staged` and `--working-tree` review staged or uncommitted changes, so AI-generated code can be checked before it is committed
 
 ## Installation
 
@@ -54,6 +55,12 @@ codereview review --base main --task "Add user permission check"
 
 # Review a repository directory
 codereview review --base main --task "Add user permission check" --cwd /path/to/repo
+
+# Review staged changes (before committing)
+codereview review --base main --task "Add user permission check" --staged
+
+# Review all uncommitted changes (staged + unstaged)
+codereview review --base main --task "Add user permission check" --working-tree
 
 # Output JSON
 codereview review --base main --task "Add user permission check" --json
@@ -213,6 +220,7 @@ CodeReview 评估一次代码修改是否引入了超出任务实际需要的**�
 - **删除文件统计**：复杂度增量包含被删除的 Python 文件
 - **可解释评分**：0-100 分，带清晰的分项拆解
 - **显式 `--cwd`**：可对任意仓库目录运行，不限于当前目录
+- **未提交变更审查**：`--staged` / `--working-tree` 可审查已暂存或未提交的变更，让 AI 生成代码在提交前就能自查
 
 ## 安装
 
@@ -236,6 +244,12 @@ codereview review --base main --task "Add user permission check"
 
 # 审查指定仓库目录
 codereview review --base main --task "Add user permission check" --cwd /path/to/repo
+
+# 审查已暂存（未提交）的变更
+codereview review --base main --task "Add user permission check" --staged
+
+# 审查全部未提交变更（已暂存 + 未暂存）
+codereview review --base main --task "Add user permission check" --working-tree
 
 # 输出 JSON
 codereview review --base main --task "Add user permission check" --json

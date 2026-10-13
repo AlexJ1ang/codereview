@@ -20,7 +20,6 @@ env/
 .codebuddy/
 
 # Tests / caches
-tests/
 .pytest_cache/
 .coverage
 htmlcov/

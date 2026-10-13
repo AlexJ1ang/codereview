@@ -129,15 +129,26 @@ def _top_level_names(tree: ast.AST) -> set[str]:
 def extract_new_symbols(
     before_source: str | None, after_source: str, file: str
 ) -> tuple[list[NewFunction], list[NewClass]]:
-    """Extract top-level functions/classes added between before and after."""
+    """Extract top-level functions/classes added between before and after.
+
+    Tolerates syntactically invalid sources (e.g. AI-generated code that
+    does not yet parse): unparseable "after" yields no new symbols, and an
+    unparseable "before" is treated as empty.
+    """
     # If before_source is None (new file), everything is new
     if before_source is None:
         before_names: set[str] = set()
     else:
-        before_tree = ast.parse(before_source)
-        before_names = _top_level_names(before_tree)
+        try:
+            before_tree = ast.parse(before_source)
+        except SyntaxError:
+            before_tree = None
+        before_names = _top_level_names(before_tree) if before_tree else set()
 
-    after_tree = ast.parse(after_source)
+    try:
+        after_tree = ast.parse(after_source)
+    except SyntaxError:
+        return [], []
 
     new_functions: list[NewFunction] = []
     new_classes: list[NewClass] = []

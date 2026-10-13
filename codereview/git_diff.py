@@ -1,7 +1,8 @@
 """Git diff collection and parsing.
 
-Only uses `git diff <base>...HEAD` plus a couple of metadata calls.
-Kept small and deterministic; no complex ignore engine.
+Supports three review sources: committed changes (`base...HEAD`), staged
+changes (`git diff --cached <base>`), and all uncommitted changes
+(`git diff <base>`). Kept small and deterministic; no complex ignore engine.
 """
 from __future__ import annotations
 
@@ -96,11 +97,28 @@ def _classify_status(raw: str) -> str:
     return {"A": "added", "D": "deleted", "M": "modified"}.get(raw, "modified")
 
 
-def _parse_name_status(base: str, cwd: Path | None) -> dict[str, tuple[str, str | None]]:
+def _diff_range(base: str, mode: str) -> list[str]:
+    """Return the git diff range arguments for a review source mode.
+
+    Modes:
+      head          -- committed changes: base...HEAD
+      staged        -- staged (index) changes: git diff --cached <base>
+      working-tree  -- all uncommitted changes (staged + unstaged): git diff <base>
+    """
+    if mode == "head":
+        return [f"{base}...HEAD"]
+    if mode == "staged":
+        return ["--cached", base]
+    if mode == "working-tree":
+        return [base]
+    raise ValueError(f"unknown diff mode: {mode!r}")
+
+
+def _parse_name_status(
+    diff_range: list[str], cwd: Path | None
+) -> dict[str, tuple[str, str | None]]:
     """Return {path: (status, old_path)} for changed files."""
-    out = run_git(
-        ["diff", "--name-status", f"{base}...HEAD"], cwd
-    )
+    out = run_git(["diff", "--name-status", *diff_range], cwd)
     result: dict[str, tuple[str, str | None]] = {}
     for line in out.splitlines():
         line = line.strip()
@@ -118,13 +136,34 @@ def _parse_name_status(base: str, cwd: Path | None) -> dict[str, tuple[str, str 
     return result
 
 
-def collect_diff(base: str, cwd: Path | None = None) -> DiffResult:
-    """Collect the diff between base and HEAD, ignoring noise files."""
-    raw_diff = run_git(["diff", f"{base}...HEAD"], cwd)
-    name_status = _parse_name_status(base, cwd)
+def _untracked_files(cwd: Path | None) -> list[str]:
+    """List untracked, non-gitignored files (working-tree mode only)."""
+    out = run_git(["ls-files", "--others", "--exclude-standard"], cwd)
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
+def _untracked_added_lines(path: Path) -> int | None:
+    """Line count of an untracked file, or None if binary/unreadable."""
+    try:
+        data = path.read_bytes()
+    except OSError:
+        return None
+    if b"\x00" in data:
+        return None  # binary
+    return len(data.decode("utf-8", errors="replace").splitlines())
+
+
+def collect_diff(
+    base: str, cwd: Path | None = None, mode: str = "head"
+) -> DiffResult:
+    """Collect the diff for the requested source mode, ignoring noise files."""
+    diff_range = _diff_range(base, mode)
+    root = cwd or Path.cwd()
+    raw_diff = run_git(["diff", *diff_range], cwd)
+    name_status = _parse_name_status(diff_range, cwd)
 
     numstat = run_git(
-        ["diff", "--numstat", f"{base}...HEAD"], cwd
+        ["diff", "--numstat", *diff_range], cwd
     )
     stat: dict[str, tuple[int, int]] = {}
     for line in numstat.splitlines():
@@ -135,6 +174,18 @@ def collect_diff(base: str, cwd: Path | None = None) -> DiffResult:
         if added_raw == "-":
             continue  # binary
         stat[path] = (int(added_raw), int(deleted_raw))
+
+    # `git diff <base>` cannot see untracked files; append them as additions
+    # so that brand-new AI-generated files are reviewable before commit.
+    # raw_diff stays limited to tracked files in this mode.
+    if mode == "working-tree":
+        for path in _untracked_files(cwd):
+            if _is_ignored(path) or path in name_status:
+                continue
+            lines = _untracked_added_lines(root / path)
+            name_status[path] = ("added", None)
+            if lines is not None:
+                stat[path] = (lines, 0)
 
     files: list[FileChange] = []
     for path, (status, old_path) in name_status.items():
@@ -167,6 +218,14 @@ def get_file_content(ref: str, path: str, cwd: Path | None = None) -> str | None
     """Return file content at a given git ref, or None if it does not exist."""
     try:
         return run_git(["show", f"{ref}:{path}"], cwd)
+    except RuntimeError:
+        return None
+
+
+def get_staged_file(path: str, cwd: Path | None = None) -> str | None:
+    """Return the staged (index) copy of a file, or None if not staged."""
+    try:
+        return run_git(["show", f":{path}"], cwd)
     except RuntimeError:
         return None
 

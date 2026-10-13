@@ -3,6 +3,12 @@ from __future__ import annotations
 
 import json
 
+_SOURCE_LABELS = {
+    "head": "HEAD (committed changes)",
+    "staged": "staged (index) changes",
+    "working-tree": "working tree (uncommitted changes)",
+}
+
 
 def render_text(report: dict) -> str:
     lines: list[str] = []
@@ -15,6 +21,9 @@ def render_text(report: dict) -> str:
         "",
         f"Base",
         f"{report['base']}",
+        "",
+        "Source",
+        _SOURCE_LABELS.get(report.get("source", "head"), report.get("source", "head")),
     ]
     lines.extend(tools)
 

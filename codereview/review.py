@@ -13,7 +13,12 @@ from .detectors import (
     extract_new_symbols,
     walk_python_files,
 )
-from .git_diff import collect_diff, get_file_content, get_working_tree_file
+from .git_diff import (
+    collect_diff,
+    get_file_content,
+    get_staged_file,
+    get_working_tree_file,
+)
 from .llm import LLMConfig, review_scope, simplification_advice
 from .python_analyzer import analyze_code, compute_delta
 from .scoring import compute_scores, risk_level
@@ -45,10 +50,43 @@ def _size_risk(files: int, added: int) -> str:
     return "HIGH"
 
 
-def run_review(base: str, task: str, cwd: Path | None = None) -> dict:
-    """Run the full review and return a structured report dict."""
+VALID_SOURCES = ("head", "staged", "working-tree")
+
+
+def _after_source_for(fc, source: str, cwd: Path) -> str | None:
+    """Return the post-change content of a file for the given source mode.
+
+    The content source must match the diff range so that line statistics
+    and content analysis describe the same snapshot:
+      head          -> committed content (HEAD)
+      staged        -> staged (index) content
+      working-tree  -> working-tree content
+    """
+    if fc.status == "deleted":
+        return None
+    if source == "head":
+        return get_file_content("HEAD", fc.path, cwd)
+    if source == "staged":
+        return get_staged_file(fc.path, cwd)
+    return get_working_tree_file(fc.path, cwd)
+
+
+def run_review(
+    base: str, task: str, cwd: Path | None = None, source: str = "head"
+) -> dict:
+    """Run the full review and return a structured report dict.
+
+    source selects what is reviewed:
+      "head"         -- committed changes vs base (default)
+      "staged"       -- staged (index) changes vs base
+      "working-tree" -- all uncommitted changes (staged + unstaged) vs base
+    """
+    if source not in VALID_SOURCES:
+        raise ValueError(
+            f"unknown source: {source!r}, expected one of {VALID_SOURCES}"
+        )
     cwd = cwd or Path.cwd()
-    diff = collect_diff(base, cwd)
+    diff = collect_diff(base, cwd, mode=source)
 
     # Collect repository Python files (existing capabilities source).
     repo_files = walk_python_files(cwd)
@@ -67,13 +105,7 @@ def run_review(base: str, task: str, cwd: Path | None = None) -> dict:
 
     for fc in changed_python:
         before_source = get_file_content(base, fc.path, cwd)
-        after_source = None
-        if fc.status == "deleted":
-            after_source = None
-        elif fc.status == "modified":
-            after_source = get_working_tree_file(fc.path, cwd)
-        else:  # added
-            after_source = get_working_tree_file(fc.path, cwd)
+        after_source = _after_source_for(fc, source, cwd)
 
         if before_source is None and after_source is None:
             continue
@@ -202,6 +234,7 @@ def run_review(base: str, task: str, cwd: Path | None = None) -> dict:
     return {
         "task": task,
         "base": base,
+        "source": source,
         "score": score,
         "risk": risk_level(score),
         "change_summary": {
