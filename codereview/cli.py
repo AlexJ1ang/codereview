@@ -28,11 +28,25 @@ def review(
     cwd: Path | None = typer.Option(
         None, "--cwd", help="Repository root (defaults to current directory)"
     ),
+    staged: bool = typer.Option(
+        False, "--staged", help="Review staged (index) changes instead of committed ones"
+    ),
+    working_tree: bool = typer.Option(
+        False,
+        "--working-tree",
+        help="Review all uncommitted changes (staged + unstaged)",
+    ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of text"),
 ) -> None:
-    """Review the current branch against `base` for implementation overhead."""
+    """Review code changes against `base` for implementation overhead."""
+    if staged and working_tree:
+        typer.echo(
+            "Error: --staged and --working-tree are mutually exclusive.", err=True
+        )
+        raise typer.Exit(code=2)
+    source = "working-tree" if working_tree else "staged" if staged else "head"
     try:
-        report = run_review(base=base, task=task, cwd=cwd)
+        report = run_review(base=base, task=task, cwd=cwd, source=source)
     except Exception as exc:
         typer.echo(f"Error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
