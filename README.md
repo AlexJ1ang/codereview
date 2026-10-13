@@ -35,16 +35,20 @@ The result is code that works, but is harder to debug, maintain, and review.
 
 ## Installation
 
+> **Note:** The `codereview` name on PyPI belongs to an unrelated legacy
+> project (a Qt5 GUI tool, last released in 2022). This project is not yet
+> published to PyPI — install directly from this repository:
+
 ```bash
-pip install codereview
+pip install git+https://github.com/AlexJ1ang/codereview.git
 ```
 
-Or install from source:
+For development (editable install with test/lint/type tooling):
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/AlexJ1ang/codereview.git
 cd codereview
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## Quick Start
@@ -225,15 +229,17 @@ CodeReview 评估一次代码修改是否引入了超出任务实际需要的**�
 ## 安装
 
 ```bash
-pip install codereview
+pip install git+https://github.com/AlexJ1ang/codereview.git
 ```
 
-或从源码安装：
+> **注意**：PyPI 上的 `codereview` 包名属于一个无关的旧项目（Qt5 图形工具，2022 年后停更）。本项目尚未发布到 PyPI，请直接从本仓库安装。
+
+开发模式（可编辑安装，含测试 / lint / 类型检查工具）：
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/AlexJ1ang/codereview.git
 cd codereview
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## 快速开始
