@@ -118,7 +118,7 @@ def _return_call_only(body: list[ast.stmt]) -> bool:
     return isinstance(stmt.value, ast.Call)
 
 
-def _top_level_names(tree: ast.AST) -> set[str]:
+def _top_level_names(tree: ast.Module) -> set[str]:
     return {
         n.name
         for n in tree.body

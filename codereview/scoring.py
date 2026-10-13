@@ -25,7 +25,7 @@ _SCOPE_DRIFT_CAP = 15
 @dataclass
 class ScoreBreakdown:
     label: str
-    points: int
+    points: float
     max_points: int
     reason: str
 
@@ -92,12 +92,14 @@ def score_abstractions(abstractions: list) -> ScoreBreakdown:
     # First finding is most informative; cap contribution.
     ratio = _scale(len(abstractions), 0, 3)
     points = round(ratio * WEIGHTS["abstraction"], 1)
-    names_list = []
+    names_list: list[str] = []
     for a in abstractions[:3]:
         if isinstance(a, dict):
-            names_list.append(a.get("name", a.get("kind", "?")))
+            names_list.append(str(a.get("name") or a.get("kind") or "?"))
         else:
-            names_list.append(getattr(a, "name", getattr(a, "kind", "?")))
+            names_list.append(
+                str(getattr(a, "name", None) or getattr(a, "kind", None) or "?")
+            )
     names = ", ".join(names_list)
     return ScoreBreakdown(
         label="Abstraction",

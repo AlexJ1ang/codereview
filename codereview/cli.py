@@ -5,8 +5,8 @@ from pathlib import Path
 
 import typer
 
-from .review import run_review
 from .report import render_json, render_text
+from .review import run_review
 
 app = typer.Typer(
     name="codereview",
